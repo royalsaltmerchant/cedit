@@ -15,7 +15,11 @@ public:
 
         wxFont font(14, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
         textCtrl->StyleSetFont(wxSTC_STYLE_DEFAULT, font);
-        textCtrl->SetWrapMode(wxSTC_WRAP_WORD);
+        // textCtrl->SetWrapMode(wxSTC_WRAP_WORD);
+
+                // Setting block-sized caret
+        textCtrl->SetCaretWidth(5);
+        textCtrl->SetCaretForeground(*wxWHITE);
 
         textCtrl->SetMarginType(0, wxSTC_MARGIN_NUMBER);
         textCtrl->SetMarginWidth(0, textCtrl->TextWidth(wxSTC_STYLE_LINENUMBER, "_99999"));
