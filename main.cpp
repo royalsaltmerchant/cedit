@@ -1,5 +1,6 @@
 #include <wx/stc/stc.h>
 #include <wx/wx.h>
+#include <wx/file.h>
 #include <iostream>
 
 // colors
@@ -66,10 +67,6 @@ public:
 		wxString keywords = "alignas alignof and and_eq asm auto bitand bitor bool break case catch char char8_t char16_t char32_t class compl concept const consteval constexpr const_cast continue co_await co_return co_yield decltype default delete do double dynamic_cast else enum explicit export extern false float for friend goto if inline int long mutable namespace new noexcept not not_eq nullptr operator or or_eq private protected public register reinterpret_cast requires return short signed sizeof static static_assert static_cast struct switch synchronized template this thread_local throw true try typedef typeid typename union unsigned using virtual void volatile wchar_t while xor xor_eq";
 		textCtrl->SetKeyWords(0, keywords);
 
-		// Events
-		textCtrl->Bind(wxEVT_STC_CHANGE, &MyTextEditor::OnTextChanged, this);
-		textCtrl->Bind(wxEVT_KEY_DOWN, &MyTextEditor::OnKeyPressed, this);
-
 		// load
 		// Open the file if a filename was provided
 		if (!filename.IsEmpty()) {
@@ -81,11 +78,16 @@ public:
 		wxMenuBar *menuBar = new wxMenuBar;
 		wxMenu *fileMenu = new wxMenu;
 		fileMenu->Append(wxID_SAVE, "&Save\tCtrl-S", "Save the current document");
+		fileMenu->Append(wxID_OPEN, "&Open\tCtrl+O", "Open a document");
 		menuBar->Append(fileMenu, "&File");
 		SetMenuBar(menuBar);
 
-		// Bind the save event
+		// Bind the events
 		Bind(wxEVT_MENU, &MyTextEditor::OnSave, this, wxID_SAVE);
+		Bind(wxEVT_MENU, &MyTextEditor::OnOpen, this, wxID_OPEN);
+
+		textCtrl->Bind(wxEVT_STC_CHANGE, &MyTextEditor::OnTextChanged, this);
+		textCtrl->Bind(wxEVT_KEY_DOWN, &MyTextEditor::OnKeyPressed, this);
 	}
 
 private:
@@ -106,6 +108,27 @@ private:
 		}
 		textCtrl->SaveFile(currentFile);
 	}
+
+	void OnOpen(wxCommandEvent& event) {
+		wxFileDialog openFileDialog(this, _("Open file"), "", "",
+						   "C++ files (*.cpp)|*.cpp|Header files (*.h)|*.h|C files (*.c)|*.c|Text files (*.txt)|*.txt", wxFD_OPEN|wxFD_FILE_MUST_EXIST);
+
+		if (openFileDialog.ShowModal() == wxID_CANCEL)
+			return;
+
+		currentFile = openFileDialog.GetPath();
+		LoadFileToEditor();
+	}
+
+    void LoadFileToEditor() {
+        wxFile file(currentFile);
+        if (!file.IsOpened())
+            return;
+
+        wxString fileContent;
+        file.ReadAll(&fileContent);
+        textCtrl->SetText(fileContent);
+    }
 
 	void OnKeyPressed(wxKeyEvent &event) {
 		int keycode = event.GetKeyCode();
