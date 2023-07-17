@@ -168,6 +168,13 @@ private:
 			textCtrl->InsertText(pos, insertText);
 			textCtrl->GotoPos(pos + 1);
 		}
+		else if (keycode == 91 && !event.ShiftDown()) {
+			// Auto-insert matching bracket and new line
+			wxString insertText = "[]";
+			long pos = textCtrl->GetCurrentPos();
+			textCtrl->InsertText(pos, insertText);
+			textCtrl->GotoPos(pos + 1);
+		}
 		else {
 			event.Skip();
 		}
