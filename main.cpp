@@ -1,6 +1,7 @@
 #include <wx/stc/stc.h>
 #include <wx/wx.h>
 #include <wx/file.h>
+#include <wx/clipbrd.h>
 #include <iostream>
 
 // colors
@@ -136,6 +137,7 @@ private:
 
 		bool cmd = event.CmdDown();
 		bool isDivideKey = (keycode == '/' && cmd);
+		bool isCutKey = (keycode == 88 && cmd);
 
 		if (isDivideKey) {
 			long from, to;
@@ -153,6 +155,19 @@ private:
 					textCtrl->InsertText(textCtrl->PositionFromLine(i), "//");
 				}
 			}
+		}
+		else if (isCutKey) {
+			// Cmd+x: cut current line
+			int currentLine = textCtrl->GetCurrentLine();
+			wxString lineText = textCtrl->GetLine(currentLine);
+
+			if (wxTheClipboard->Open()) {
+				wxTheClipboard->SetData(new wxTextDataObject(lineText));
+				wxTheClipboard->Close();
+			}
+			// Remove
+			textCtrl->GotoLine(currentLine);
+			textCtrl->LineDelete();
 		}
 		else if (keycode == 57 && event.ShiftDown()) {
 			// Auto-insert matching bracket
@@ -174,6 +189,35 @@ private:
 			long pos = textCtrl->GetCurrentPos();
 			textCtrl->InsertText(pos, insertText);
 			textCtrl->GotoPos(pos + 1);
+		}		
+		else if (keycode == 315 && event.AltDown()) {
+			// Alt+UpArrow: move current line up
+			int currentLine = textCtrl->GetCurrentLine();
+			if (currentLine > 0) {
+				wxString tempLine = textCtrl->GetLine(currentLine);
+				textCtrl->BeginUndoAction();
+				textCtrl->DeleteRange(textCtrl->PositionFromLine(currentLine), tempLine.Length());
+				textCtrl->InsertText(textCtrl->PositionFromLine(currentLine - 1), tempLine);
+				textCtrl->EndUndoAction();
+				textCtrl->GotoLine(currentLine - 1);
+			}
+		}	
+		else if (keycode == 317 && event.AltDown()) {
+			// Alt+DownArrow: move current line down
+			int currentLine = textCtrl->GetCurrentLine();
+			if (currentLine < textCtrl->GetLineCount() - 1) {
+				wxString tempLine = textCtrl->GetLine(currentLine);
+				textCtrl->BeginUndoAction();
+				textCtrl->DeleteRange(textCtrl->PositionFromLine(currentLine), tempLine.Length());
+				textCtrl->InsertText(textCtrl->PositionFromLine(currentLine + 1), tempLine);
+				textCtrl->EndUndoAction();
+				textCtrl->GotoLine(currentLine + 1);
+			}
+		}
+		else if (keycode == 90 && cmd && event.ShiftDown()) { // 90 is the keycode for 'Z'
+			// Cmd + Shift + Z: redo
+			if (textCtrl->CanRedo())
+				textCtrl->Redo();
 		}
 		else {
 			event.Skip();
