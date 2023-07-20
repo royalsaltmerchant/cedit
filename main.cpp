@@ -1,68 +1,15 @@
-#include <wx/stc/stc.h>
-#include <wx/wx.h>
-#include <wx/file.h>
-#include <wx/clipbrd.h>
-#include <iostream>
+#include "Editor.h"
 
-// colors
-wxColour white(220, 220, 220);
-wxColour grey(49, 56, 72);
-wxColour light_grey(107, 116, 134);
-wxColour dark_grey(36, 42, 54);
-
-wxColour red(225, 165, 165);
-wxColour purple(180, 160, 200);
-wxColour light_blue(155, 205, 225);
-wxColour green(160, 200, 160);
-wxColour orange(235, 175, 125);
-// font
-wxFont font(14, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
-
-
-class MyTextEditor : public wxFrame {
+class Frame : public wxFrame {
 public:
-	MyTextEditor(const wxString &filename) : wxFrame(NULL, wxID_ANY, "Text Editor", wxDefaultPosition, wxSize(1000, 800)) {
-		textCtrl = new wxStyledTextCtrl(this, wxID_ANY);
-
-		textCtrl->StyleSetForeground(wxSTC_STYLE_DEFAULT, white);	  // Set default text color to white
-		textCtrl->StyleSetBackground(wxSTC_STYLE_DEFAULT, dark_grey); // Set default background color to black
-
-		textCtrl->StyleSetFont(wxFONTFAMILY_DEFAULT, font);
-		// wrap
-		// textCtrl->SetWrapMode(wxSTC_WRAP_WORD);
-
-		textCtrl->SetTabWidth(4); // Set the width of a tab to be 4 spaces
-
-		// Setting block-sized caret
-		textCtrl->SetCaretWidth(5);
-		textCtrl->SetCaretForeground(white);
-		// Margin numbers
-		textCtrl->SetMarginType(0, wxSTC_MARGIN_NUMBER);
-		textCtrl->SetMarginWidth(0, textCtrl->TextWidth(wxSTC_STYLE_LINENUMBER, "_99999"));
-
-		textCtrl->StyleClearAll(); // Apply the above set styles to all existing text
-
-		textCtrl->StyleSetForeground(wxSTC_STYLE_LINENUMBER, light_grey); // Line number color
-		textCtrl->StyleSetBackground(wxSTC_STYLE_LINENUMBER, grey);
-
-    MyTextEditor::InitCppStyle();
-    MyTextEditor::InitMenu();
-
-		// load
-		// Open the file if a filename was provided
-		if (!filename.IsEmpty()) {
-			textCtrl->LoadFile(filename);
-			currentFile = filename;
-		}
-
-
-		textCtrl->Bind(wxEVT_STC_CHANGE, &MyTextEditor::OnTextChanged, this);
-		textCtrl->Bind(wxEVT_KEY_DOWN, &MyTextEditor::OnKeyPressed, this);
-	}
-
+  Frame(const wxString &filename) : wxFrame(NULL, wxID_ANY, "Text Editor", wxDefaultPosition, wxSize(1000, 800)) {
+    // setup text editor
+    textEdit = new TextEdit(filename, this);
+    // setup menu
+    Frame::InitMenu();
+  };
 private:
-	wxStyledTextCtrl *textCtrl;
-	wxString currentFile;
+  TextEdit* textEdit;
 
   void InitMenu() {
     		// Create a menu bar
@@ -74,165 +21,9 @@ private:
 		SetMenuBar(menuBar);
 
 		// Bind the events
-		Bind(wxEVT_MENU, &MyTextEditor::OnSave, this, wxID_SAVE);
-		Bind(wxEVT_MENU, &MyTextEditor::OnOpen, this, wxID_OPEN);
+		Bind(wxEVT_MENU, &TextEdit::OnSave, textEdit, wxID_SAVE);
+		Bind(wxEVT_MENU, &TextEdit::OnOpen, textEdit, wxID_OPEN);
   }
-
-  //init the cpp format
-  void InitCppStyle() {
-		textCtrl->SetLexer(wxSTC_LEX_CPP);
-		textCtrl->StyleSetForeground(wxSTC_C_COMMENT, light_grey);
-		textCtrl->StyleSetForeground(wxSTC_C_COMMENTLINE, light_grey);
-		textCtrl->StyleSetForeground(wxSTC_C_COMMENTDOC, light_grey);
-		textCtrl->StyleSetForeground(wxSTC_C_NUMBER, red);
-		textCtrl->StyleSetForeground(wxSTC_C_WORD, light_blue);
-		textCtrl->StyleSetForeground(wxSTC_C_STRING, green);
-		textCtrl->StyleSetForeground(wxSTC_C_CHARACTER, green);
-		textCtrl->StyleSetForeground(wxSTC_C_OPERATOR, purple);
-		textCtrl->StyleSetForeground(wxSTC_C_PREPROCESSOR, orange);
-
-		textCtrl->StyleSetFont(wxSTC_C_COMMENT, font);
-		textCtrl->StyleSetFont(wxSTC_C_COMMENTLINE, font);
-		textCtrl->StyleSetFont(wxSTC_C_COMMENTDOC, font);
-		textCtrl->StyleSetFont(wxSTC_C_NUMBER, font);
-		textCtrl->StyleSetFont(wxSTC_C_WORD, font);
-		textCtrl->StyleSetFont(wxSTC_C_STRING, font);
-		textCtrl->StyleSetFont(wxSTC_C_CHARACTER, font);
-		textCtrl->StyleSetFont(wxSTC_C_OPERATOR, font);
-
-		wxString keywords = "alignas alignof and and_eq asm auto bitand bitor bool break case catch char char8_t char16_t char32_t class compl concept const consteval constexpr const_cast continue co_await co_return co_yield decltype default delete do double dynamic_cast else enum explicit export extern false float for friend goto if inline int long mutable namespace new noexcept not not_eq nullptr operator or or_eq private protected public register reinterpret_cast requires return short signed sizeof static static_assert static_cast struct switch synchronized template this thread_local throw true try typedef typeid typename union unsigned using virtual void volatile wchar_t while xor xor_eq";
-		textCtrl->SetKeyWords(0, keywords);
-  }
-
-  // handle numbers column in textwidth
-	void OnTextChanged(wxStyledTextEvent &event) {
-		textCtrl->SetMarginWidth(0, textCtrl->TextWidth(wxSTC_STYLE_LINENUMBER, "_99999"));
-		event.Skip();
-	}
-  // save the current file
-	void OnSave(wxCommandEvent &event) {
-		if (currentFile.IsEmpty()) {
-			wxFileDialog saveFileDialog(this, "Save as", "", "", "Text files (*.txt)|*.txt|All files (*.*)|*.*", wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
-			if (saveFileDialog.ShowModal() == wxID_CANCEL)
-				return; // The user cancelled the operation
-			currentFile = saveFileDialog.GetPath();
-		}
-		textCtrl->SaveFile(currentFile);
-	}
-  // open a new file
-	void OnOpen(wxCommandEvent& event) {
-		wxFileDialog openFileDialog(this, _("Open file"), "", "",
-						   "C++ files (*.cpp)|*.cpp|Header files (*.h)|*.h|C files (*.c)|*.c|Text files (*.txt)|*.txt", wxFD_OPEN|wxFD_FILE_MUST_EXIST);
-
-		if (openFileDialog.ShowModal() == wxID_CANCEL)
-			return;
-
-		currentFile = openFileDialog.GetPath();
-		LoadFileToEditor();
-	}
-  // load in the file
-  void LoadFileToEditor() {
-      wxFile file(currentFile);
-      if (!file.IsOpened())
-          return;
-
-      wxString fileContent;
-      file.ReadAll(&fileContent);
-      textCtrl->SetText(fileContent);
-  }
-  // handle key commands
-	void OnKeyPressed(wxKeyEvent &event) {
-		int keycode = event.GetKeyCode();
-		wxLogDebug("Keycode: %d", keycode);
-
-		bool cmd = event.CmdDown();
-		bool isDivideKey = (keycode == '/' && cmd);
-		bool isCutKey = (keycode == 88 && cmd);
-
-		if (isDivideKey) {
-			long from, to;
-			textCtrl->GetSelection(&from, &to);
-			if (from == to) { // no selection
-				// comment current line
-				int line = textCtrl->GetCurrentLine();
-				textCtrl->InsertText(textCtrl->PositionFromLine(line), "//");
-			}
-			else {
-				// multiple lines selected
-				int line_from = textCtrl->LineFromPosition(from);
-				int line_to = textCtrl->LineFromPosition(to);
-				for (int i = line_from; i <= line_to; ++i) {
-					textCtrl->InsertText(textCtrl->PositionFromLine(i), "//");
-				}
-			}
-		}
-		else if (isCutKey) {
-			// Cmd+x: cut current line
-			int currentLine = textCtrl->GetCurrentLine();
-			wxString lineText = textCtrl->GetLine(currentLine);
-
-			if (wxTheClipboard->Open()) {
-				wxTheClipboard->SetData(new wxTextDataObject(lineText));
-				wxTheClipboard->Close();
-			}
-			// Remove
-			textCtrl->GotoLine(currentLine);
-			textCtrl->LineDelete();
-		}
-		else if (keycode == 57 && event.ShiftDown()) {
-			// Auto-insert matching bracket
-			wxString insertText = "()";
-			long pos = textCtrl->GetCurrentPos();
-			textCtrl->InsertText(pos, insertText);
-			textCtrl->GotoPos(pos + 1);
-		}
-		else if (keycode == 91 && event.ShiftDown()) {
-			// Auto-insert matching bracket and new line
-			wxString insertText = "{}";
-			long pos = textCtrl->GetCurrentPos();
-			textCtrl->InsertText(pos, insertText);
-			textCtrl->GotoPos(pos + 1);
-		}
-		else if (keycode == 91 && !event.ShiftDown()) {
-			// Auto-insert matching bracket and new line
-			wxString insertText = "[]";
-			long pos = textCtrl->GetCurrentPos();
-			textCtrl->InsertText(pos, insertText);
-			textCtrl->GotoPos(pos + 1);
-		}		
-		else if (keycode == 315 && event.AltDown()) {
-			// Alt+UpArrow: move current line up
-			int currentLine = textCtrl->GetCurrentLine();
-			if (currentLine > 0) {
-				wxString tempLine = textCtrl->GetLine(currentLine);
-				textCtrl->BeginUndoAction();
-				textCtrl->DeleteRange(textCtrl->PositionFromLine(currentLine), tempLine.Length());
-				textCtrl->InsertText(textCtrl->PositionFromLine(currentLine - 1), tempLine);
-				textCtrl->EndUndoAction();
-				textCtrl->GotoLine(currentLine - 1);
-			}
-		}	
-		else if (keycode == 317 && event.AltDown()) {
-			// Alt+DownArrow: move current line down
-			int currentLine = textCtrl->GetCurrentLine();
-			if (currentLine < textCtrl->GetLineCount() - 1) {
-				wxString tempLine = textCtrl->GetLine(currentLine);
-				textCtrl->BeginUndoAction();
-				textCtrl->DeleteRange(textCtrl->PositionFromLine(currentLine), tempLine.Length());
-				textCtrl->InsertText(textCtrl->PositionFromLine(currentLine + 1), tempLine);
-				textCtrl->EndUndoAction();
-				textCtrl->GotoLine(currentLine + 1);
-			}
-		}
-		else if (keycode == 90 && cmd && event.ShiftDown()) { // 90 is the keycode for 'Z'
-			// Cmd + Shift + Z: redo
-			if (textCtrl->CanRedo())
-				textCtrl->Redo();
-		}
-		else {
-			event.Skip();
-		}
-	}
 };
 
 class MyApp : public wxApp {
@@ -243,8 +34,8 @@ public:
 			filename = argv[1];
 		}
 
-		MyTextEditor *editor = new MyTextEditor(filename);
-		editor->Show();
+		Frame* frame = new Frame(filename);
+		frame->Show();
 		return true;
 	}
 };
