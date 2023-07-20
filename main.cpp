@@ -15,14 +15,14 @@ wxColour purple(180, 160, 200);
 wxColour light_blue(155, 205, 225);
 wxColour green(160, 200, 160);
 wxColour orange(235, 175, 125);
+// font
+wxFont font(14, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
+
 
 class MyTextEditor : public wxFrame {
 public:
 	MyTextEditor(const wxString &filename) : wxFrame(NULL, wxID_ANY, "Text Editor", wxDefaultPosition, wxSize(1000, 800)) {
 		textCtrl = new wxStyledTextCtrl(this, wxID_ANY);
-
-		// Set styles
-		wxFont font(14, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
 
 		textCtrl->StyleSetForeground(wxSTC_STYLE_DEFAULT, white);	  // Set default text color to white
 		textCtrl->StyleSetBackground(wxSTC_STYLE_DEFAULT, dark_grey); // Set default background color to black
@@ -45,6 +45,41 @@ public:
 		textCtrl->StyleSetForeground(wxSTC_STYLE_LINENUMBER, light_grey); // Line number color
 		textCtrl->StyleSetBackground(wxSTC_STYLE_LINENUMBER, grey);
 
+    MyTextEditor::InitCppStyle();
+    MyTextEditor::InitMenu();
+
+		// load
+		// Open the file if a filename was provided
+		if (!filename.IsEmpty()) {
+			textCtrl->LoadFile(filename);
+			currentFile = filename;
+		}
+
+
+		textCtrl->Bind(wxEVT_STC_CHANGE, &MyTextEditor::OnTextChanged, this);
+		textCtrl->Bind(wxEVT_KEY_DOWN, &MyTextEditor::OnKeyPressed, this);
+	}
+
+private:
+	wxStyledTextCtrl *textCtrl;
+	wxString currentFile;
+
+  void InitMenu() {
+    		// Create a menu bar
+		wxMenuBar *menuBar = new wxMenuBar;
+		wxMenu *fileMenu = new wxMenu;
+		fileMenu->Append(wxID_SAVE, "&Save\tCtrl-S", "Save the current document");
+		fileMenu->Append(wxID_OPEN, "&Open\tCtrl+O", "Open a document");
+		menuBar->Append(fileMenu, "&File");
+		SetMenuBar(menuBar);
+
+		// Bind the events
+		Bind(wxEVT_MENU, &MyTextEditor::OnSave, this, wxID_SAVE);
+		Bind(wxEVT_MENU, &MyTextEditor::OnOpen, this, wxID_OPEN);
+  }
+
+  //init the cpp format
+  void InitCppStyle() {
 		textCtrl->SetLexer(wxSTC_LEX_CPP);
 		textCtrl->StyleSetForeground(wxSTC_C_COMMENT, light_grey);
 		textCtrl->StyleSetForeground(wxSTC_C_COMMENTLINE, light_grey);
@@ -67,39 +102,14 @@ public:
 
 		wxString keywords = "alignas alignof and and_eq asm auto bitand bitor bool break case catch char char8_t char16_t char32_t class compl concept const consteval constexpr const_cast continue co_await co_return co_yield decltype default delete do double dynamic_cast else enum explicit export extern false float for friend goto if inline int long mutable namespace new noexcept not not_eq nullptr operator or or_eq private protected public register reinterpret_cast requires return short signed sizeof static static_assert static_cast struct switch synchronized template this thread_local throw true try typedef typeid typename union unsigned using virtual void volatile wchar_t while xor xor_eq";
 		textCtrl->SetKeyWords(0, keywords);
+  }
 
-		// load
-		// Open the file if a filename was provided
-		if (!filename.IsEmpty()) {
-			textCtrl->LoadFile(filename);
-			currentFile = filename;
-		}
-
-		// Create a menu bar
-		wxMenuBar *menuBar = new wxMenuBar;
-		wxMenu *fileMenu = new wxMenu;
-		fileMenu->Append(wxID_SAVE, "&Save\tCtrl-S", "Save the current document");
-		fileMenu->Append(wxID_OPEN, "&Open\tCtrl+O", "Open a document");
-		menuBar->Append(fileMenu, "&File");
-		SetMenuBar(menuBar);
-
-		// Bind the events
-		Bind(wxEVT_MENU, &MyTextEditor::OnSave, this, wxID_SAVE);
-		Bind(wxEVT_MENU, &MyTextEditor::OnOpen, this, wxID_OPEN);
-
-		textCtrl->Bind(wxEVT_STC_CHANGE, &MyTextEditor::OnTextChanged, this);
-		textCtrl->Bind(wxEVT_KEY_DOWN, &MyTextEditor::OnKeyPressed, this);
-	}
-
-private:
-	wxStyledTextCtrl *textCtrl;
-	wxString currentFile;
-
+  // handle numbers column in textwidth
 	void OnTextChanged(wxStyledTextEvent &event) {
 		textCtrl->SetMarginWidth(0, textCtrl->TextWidth(wxSTC_STYLE_LINENUMBER, "_99999"));
 		event.Skip();
 	}
-
+  // save the current file
 	void OnSave(wxCommandEvent &event) {
 		if (currentFile.IsEmpty()) {
 			wxFileDialog saveFileDialog(this, "Save as", "", "", "Text files (*.txt)|*.txt|All files (*.*)|*.*", wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
@@ -109,7 +119,7 @@ private:
 		}
 		textCtrl->SaveFile(currentFile);
 	}
-
+  // open a new file
 	void OnOpen(wxCommandEvent& event) {
 		wxFileDialog openFileDialog(this, _("Open file"), "", "",
 						   "C++ files (*.cpp)|*.cpp|Header files (*.h)|*.h|C files (*.c)|*.c|Text files (*.txt)|*.txt", wxFD_OPEN|wxFD_FILE_MUST_EXIST);
@@ -120,17 +130,17 @@ private:
 		currentFile = openFileDialog.GetPath();
 		LoadFileToEditor();
 	}
+  // load in the file
+  void LoadFileToEditor() {
+      wxFile file(currentFile);
+      if (!file.IsOpened())
+          return;
 
-    void LoadFileToEditor() {
-        wxFile file(currentFile);
-        if (!file.IsOpened())
-            return;
-
-        wxString fileContent;
-        file.ReadAll(&fileContent);
-        textCtrl->SetText(fileContent);
-    }
-
+      wxString fileContent;
+      file.ReadAll(&fileContent);
+      textCtrl->SetText(fileContent);
+  }
+  // handle key commands
 	void OnKeyPressed(wxKeyEvent &event) {
 		int keycode = event.GetKeyCode();
 		wxLogDebug("Keycode: %d", keycode);
